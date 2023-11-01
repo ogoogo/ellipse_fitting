@@ -3,6 +3,7 @@
 # for image-based spacecraft navigation." 
 # Journal of Spacecraft and Rockets 54.3 (2017): 708-730.
 import numpy as np
+import pandas as pd
 from PIL import Image
 import scipy.integrate
 import math
@@ -11,11 +12,13 @@ import curve_fitting_tools
 import random
 import matplotlib.pyplot
 
+ID = 3
+e = 0.8
 # constants
 R_EARTH = 6371E3
 
 # image settings
-IMAGE_FILE_NAME = './images/celestia_image_20.png'
+IMAGE_FILE_NAME = './images/output/' + str(ID) +'.png'
 D_TRUE = 408+R_EARTH # true distance to Earth [m]
 
 # set sun earth direction (TODO: ephemeris-based approach)
@@ -31,7 +34,7 @@ zernike_radius = 4 # Zernike moment size (NOTE: cannot be larger than window_siz
 sigma_psf = 0.2 # pixel point spread function
 d_min = 100 # usually 5*radius_px_body/100
 N_T = 500 # maximum RANSAC tests
-shape = 0 # hyperbola = 0, ellipse = 1
+shape = 1 # hyperbola = 0, ellipse = 1
 line_thickness = 1 # pixel line fit thinkness
 bright_thresh = 100 # bright pixel threshold
 
@@ -40,7 +43,32 @@ gradient_ratio = 0.6
 direction_ratio = 0.3
 
 if __name__ == "__main__":
+
+    # CSVファイルのパスを指定
+    csv_file_path = "./source/output_1.csv"
+
+    # CSVファイルを読み込む
+    df = pd.read_csv(csv_file_path, header=None)
+
+    # 6行目のデータを取得
+    row = df.iloc[ID-1]  # インデックスは0から始まるため
+
+    # 10番目と11番目の値を取得し、配列に格納
+    value_10 = -row[29]  # インデックスは0から始まるため
+    value_11 = row[31]
+    values = np.array([value_10, value_11])
+    dis = np.linalg.norm(values)
+    u = values/dis
+
+    f_answer = np.array(row[44:50])
+    print(f_answer)
+
+    # 結果を表示
+    print("取得した値:", u)
+
     
+        
+
     # read image from file and convert to black and white
     original_image = Image.open(IMAGE_FILE_NAME)
     image = np.array(Image.open(IMAGE_FILE_NAME).convert('L'))
@@ -67,7 +95,7 @@ if __name__ == "__main__":
     # image = image.astype(npbright_thresh32)
     
     # determine bright pixel threshold
-    bright_thresh = 100
+    bright_thresh = 10
     
     # generate horizon scan lines
     b = np.array([[1,0],[-1,0],[0,1],[0,-1]])
@@ -243,7 +271,7 @@ if __name__ == "__main__":
         if shape == 0:
             f = curve_fitting_tools.fitzgibbon_hyp_fit(edge[m,1], edge[m,0])
         else:
-            f = curve_fitting_tools.fitzgibbon_fit(edge[:,1], edge[:,0])
+            f = curve_fitting_tools.fitzgibbon_e_fit(edge[:,1], edge[:,0], e)
         
         # check distance with all points
         N_k = 0
@@ -272,7 +300,7 @@ if __name__ == "__main__":
     if shape == 0:
         f = curve_fitting_tools.fitzgibbon_hyp_fit(edge[:,1], edge[:,0])
     else:
-        f = curve_fitting_tools.fitzgibbon_fit(edge[:,1], edge[:,0])
+        f = curve_fitting_tools.fitzgibbon_e_fit(edge[:,1], edge[:,0], e)
        
     # plot implicit function
     x = np.arange(0,width,1)
@@ -282,12 +310,29 @@ if __name__ == "__main__":
     plt = matplotlib.pyplot.contour(z,[0])
     x = plt.collections[0].get_paths()[0].vertices[:,0]
     y = plt.collections[0].get_paths()[0].vertices[:,1]
+
+    x_ans = np.arange(-width/2,width/2,1)
+    y_ans = np.arange(-height/2,height/2,1)
+    x_ans,y_ans = np.meshgrid(x_ans,y_ans)
+    k = 50*494/3.66
+    z_ans = f_answer[0]*(x_ans/k)**2 + f_answer[1]*(x_ans/k)*(-y_ans/k) + f_answer[2]*(-y_ans/k)**2 + f_answer[3]*(x_ans/k) + f_answer[4]*(-y_ans/k) + f_answer[5]
+    plt_ans = matplotlib.pyplot.contour(z_ans,[0])
+    x_ans = plt_ans.collections[0].get_paths()[0].vertices[:,0] 
+    y_ans = plt_ans.collections[0].get_paths()[0].vertices[:,1] 
+
     for i in range(0,len(x)):
         if int(y[i]) >= height-1 or int(y[i]) <= 0 or \
             int(x[i]) >= width-1 or int(x[i]) <= 0:
             continue
         original_image = insert_pixel(original_image,x[i],y[i],(255,0,0),line_thickness)
-        
+
+
+    for i in range(0,len(x_ans)):
+        if int(y_ans[i]) >= height-1 or int(y_ans[i]) <= 0 or \
+            int(x_ans[i]) >= width-1 or int(x_ans[i]) <= 0:
+            continue
+        original_image = insert_pixel(original_image,x_ans[i],y_ans[i],(0,255,0),line_thickness)  
+
     # calculate error
     d_err = np.zeros(N_k)
     for i in range(0,N_k):
