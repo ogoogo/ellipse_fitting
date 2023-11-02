@@ -9,11 +9,13 @@ import scipy.integrate
 import math
 import warnings
 import curve_fitting_tools
+import fitzgibbon_e
+import scipy_slsqp
 import random
 import matplotlib.pyplot
 
 ID = 3
-e = 0.8
+e = 0.3
 # constants
 R_EARTH = 6371E3
 
@@ -271,7 +273,9 @@ if __name__ == "__main__":
         if shape == 0:
             f = curve_fitting_tools.fitzgibbon_hyp_fit(edge[m,1], edge[m,0])
         else:
-            f = curve_fitting_tools.fitzgibbon_e_fit(edge[:,1], edge[:,0], e)
+            # f = curve_fitting_tools.fitzgibbon_e_fit(edge[:,1], edge[:,0], e)
+            # f = fitzgibbon_e.bfgs_fit(edge[:,1], edge[:,0], e)
+            f = scipy_slsqp.slsqp(edge[:,1], edge[:,0], e)
         
         # check distance with all points
         N_k = 0
@@ -300,7 +304,9 @@ if __name__ == "__main__":
     if shape == 0:
         f = curve_fitting_tools.fitzgibbon_hyp_fit(edge[:,1], edge[:,0])
     else:
-        f = curve_fitting_tools.fitzgibbon_e_fit(edge[:,1], edge[:,0], e)
+        # f = curve_fitting_tools.fitzgibbon_e_fit(edge[:,1], edge[:,0], e)
+        # f = fitzgibbon_e.bfgs_fit(edge[:,1], edge[:,0], e)
+        f = scipy_slsqp.slsqp(edge[:,1], edge[:,0], e)
        
     # plot implicit function
     x = np.arange(0,width,1)
@@ -327,11 +333,11 @@ if __name__ == "__main__":
         original_image = insert_pixel(original_image,x[i],y[i],(255,0,0),line_thickness)
 
 
-    for i in range(0,len(x_ans)):
-        if int(y_ans[i]) >= height-1 or int(y_ans[i]) <= 0 or \
-            int(x_ans[i]) >= width-1 or int(x_ans[i]) <= 0:
-            continue
-        original_image = insert_pixel(original_image,x_ans[i],y_ans[i],(0,255,0),line_thickness)  
+    # for i in range(0,len(x_ans)):
+    #     if int(y_ans[i]) >= height-1 or int(y_ans[i]) <= 0 or \
+    #         int(x_ans[i]) >= width-1 or int(x_ans[i]) <= 0:
+    #         continue
+    #     original_image = insert_pixel(original_image,x_ans[i],y_ans[i],(0,255,0),line_thickness)  
 
     # calculate error
     d_err = np.zeros(N_k)
